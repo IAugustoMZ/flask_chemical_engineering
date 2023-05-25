@@ -1,8 +1,13 @@
+from datetime import datetime
+from flask_moment import Moment
 from flask_bootstrap import Bootstrap
 from flask import Flask, render_template
 
 # app instance
 app = Flask(__name__)
+
+# render hour and timestamp
+moment = Moment(app)
 
 # integrate with Bootstrap
 bootstrap = Bootstrap(app)
@@ -10,7 +15,8 @@ bootstrap = Bootstrap(app)
 # define home route
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html',
+                           current_time=datetime.utcnow())
 
 # define user home page
 @app.route('/user/<name>')

@@ -10,6 +10,11 @@
     type="image/x-icon">
 {% endblock %}
 
+{% block scripts %}
+{{ super() }}
+{{ moment.include_moment() }}
+{% endblock %}
+
 {% block navbar %}
     <div class="navbar navbar-inverse" role="navigation">
         <div class="container">
@@ -37,5 +42,9 @@
         <div class="page-header">
             {% block page_content %}{% endblock %}
         </div>
+    </div>
+    <hr>
+    <div style="color: lightgrey; text-align: center;">
+        All rights reserved - Sistek Analytics - 2023
     </div>
 {% endblock %}
