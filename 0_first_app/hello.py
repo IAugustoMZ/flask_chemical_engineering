@@ -4,7 +4,7 @@ from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
 from wtforms.validators import DataRequired
 from wtforms import StringField, SubmitField
-from flask import Flask, render_template, session, redirect, url_for
+from flask import Flask, render_template, session, redirect, url_for, flash
 
 # app instance
 app = Flask(__name__)
@@ -28,6 +28,9 @@ class NameForm(FlaskForm):
 def index():
     form = NameForm()                          # create class of form
     if form.validate_on_submit():              # validate submission
+        old_name = session.get('name')         # extract old session name
+        if old_name is not None and old_name != form.name.data:
+            flash('Looks like you have changed your name!')
         session['name'] = form.name.data       # extract the name from form and save it on
                                                # session variable
         return redirect(url_for('index'))
