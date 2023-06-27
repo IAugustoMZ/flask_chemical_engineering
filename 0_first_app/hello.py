@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from flask_moment import Moment
 from flask_wtf import FlaskForm
+from flask_migrate import Migrate
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from wtforms.validators import DataRequired
@@ -30,6 +31,9 @@ bootstrap = Bootstrap(app)
 
 # configure database
 db = SQLAlchemy(app)
+
+# implement database migrations manager
+migrate = Migrate(app, db)
 
 # define classes
 # name form
@@ -63,16 +67,24 @@ class User(db.Model):
 def index():
     form = NameForm()                          # create class of form
     if form.validate_on_submit():              # validate submission
-        old_name = session.get('name')         # extract old session name
-        if old_name is not None and old_name != form.name.data:
-            flash('Looks like you have changed your name!')
-        session['name'] = form.name.data       # extract the name from form and save it on
-                                               # session variable
+        
+        # query user from database
+        user = User.query.filter_by(username=form.name.data).first()
+
+        if user is None:
+            user = User(username=form.name.data)
+            db.session.add(user)
+            db.session.commit()
+            session['known'] = False
+        else:
+            session['known'] = True
+            session['name'] = form.name.data
+            form.name.data = ''
         return redirect(url_for('index'))
     return render_template('index.html',
-                           form=form,
-                           name=session.get('name'),
-                           current_time=datetime.utcnow())
+                            form=form, name=session.get('name'),
+                            known=session.get('known', False),
+                            current_time=datetime.now())
 
 # define user home page
 @app.route('/user/<name>')
@@ -87,3 +99,8 @@ def page_not_found(e):
 @app.errorhandler(500)
 def internal_server_error(e):
     return render_template('500.html'), 500
+
+# add a shell context integration
+@app.shell_context_processor
+def make_shell_context():
+    return dict(db=db, User=User, Role=Role)
