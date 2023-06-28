@@ -1,8 +1,10 @@
 import os
+from threading import Thread
 from datetime import datetime
 from flask_moment import Moment
 from flask_wtf import FlaskForm
 from flask_migrate import Migrate
+from flask_mail import Mail, Message
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 from wtforms.validators import DataRequired
@@ -22,6 +24,18 @@ app.config['SECRET_KEY'] = 'W&roN,ww%&hmEZ<'
 app.config['SQLALCHEMY_DATABASE_URI'] =\
     'sqlite:///' + os.path.join(basedir, 'data.sqlite') # connection string
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False    # do not track modifications to save memory
+
+# configure mail access
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['WEBAPP_MAIL_SUBJECT_PREFIX'] = '[WebApp] '
+app.config['WEBAPP_MAIL_SENDER'] = 'WebApp Admin {}'.format(os.environ.get('MAIL_USERNAME'))
+app.config['WEBAPP_ADMIN'] = os.environ.get('MAIL_USERNAME')
+
+mail = Mail(app)
 
 # render hour and timestamp
 moment = Moment(app)
@@ -61,6 +75,23 @@ class User(db.Model):
 
     def __repr__(self):
         return '<User %r>' % self.username
+    
+# define email handling function
+def send_async_email(app, msg):
+    with app.app_context():
+        mail.send(msg)
+
+def send_email(to, subject, template, **kwargs):
+    msg = Message(app.config['WEBAPP_MAIL_SUBJECT_PREFIX'] + subject,
+                  sender=app.config['WEBAPP_MAIL_SENDER'],
+                  recipients=[to])
+    msg.body = render_template(template + '.txt', **kwargs)
+    msg.html = render_template(template + '.html', **kwargs)
+
+    thr = Thread(target=send_async_email, args=[app, msg])
+    thr.start()
+
+    return thr
 
 # define home route
 @app.route('/', methods=['GET', 'POST'])
@@ -76,6 +107,9 @@ def index():
             db.session.add(user)
             db.session.commit()
             session['known'] = False
+
+            if app.config['WEBAPP_ADMIN']:
+                send_email(app.config['WEBAPP_ADMIN'], 'New User', 'mail/new_user', user=user)
         else:
             session['known'] = True
             session['name'] = form.name.data
